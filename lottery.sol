@@ -8,51 +8,38 @@ contract PoolContract{
 	
 	mapping(address => uint) balances;
     
-  address payable[] public users;
+    address payable[] public users;
 
 	uint public noOfWinners;
-	
-	string public tokenName;
-	uint public tokenPrice;
-
-	uint public totalRaisedAmount;
-	
-	uint public coolDownPeriod; //TimeStamp After which user can easily withdraw money without any charges
-	
-	uint public earlyExitFee;
+    
+    uint public totalRaisedAmount;
 	
 	uint public remaningTime;
-
-  uint yieldedProfit;
-
-  uint fairness; // lock-down period
-// 	enum timePeriod{weekly, daily}
-	
-// 	timePeriod public PoolPeriod;
-
-    // enum PoolState { Open, Closed, Finished }
-
-	constructor(uint _noOfWinners, uint _coolDownPeriod, uint _earlyExitFeePercentage, string memory _tokenName, uint _tokenPrice){
-		noOfWinners = _noOfWinners;
-		coolDownPeriod = block.timestamp + _coolDownPeriod;
-		earlyExitFee = _earlyExitFeePercentage;
+    
+    
+    event Transaction(address userAddr, uint256 amount);
+    
+	constructor(){
+		noOfWinners = 1;
 		owner = msg.sender;
-		tokenName = _tokenName;
-		tokenPrice = _tokenPrice;
 		remaningTime = block.timestamp + 3600;
-		fairness = 8; // pool period + 1 day
+		
 	}
+    
+    function addInitialFund() external payable onlyOwner{}
+
+
 
 	modifier onlyOwner() { 
 		require (msg.sender == owner); 
 		_; 
 	}
 
-	function investInPool() public payable {
+	function investInPool() external payable {
 	    require(msg.sender != owner, "Owner can not Invest");
 	    require(msg.value > 0, "Must be greater than zero");
 	    if(balances[msg.sender] == 0){
-	        users.push(payable (msg.sender));
+	        users.push(payable(msg.sender));
 	        balances[msg.sender] = msg.value;
 	    }
 	    else{
@@ -60,17 +47,18 @@ contract PoolContract{
 	    }
 	    totalRaisedAmount+=msg.value;
 	}
-	
-	function Investment() public onlyOwner{
-	    require(block.timestamp > remaningTime);
-      yieldedProfit = totalRaisedAmount + 1000;
-	}
-	
-	
+
 	//Do not use it for online transactions
 	function random() internal view returns(uint){
 		return uint(keccak256(abi.encodePacked(block.difficulty, block.timestamp, users.length))) ;
 	}
+	
+	function getBalance() public view returns(uint){
+	    return address(this).balance;
+	}
+	
+	
+
 
 
 	function pickWinner() public onlyOwner{
@@ -79,10 +67,14 @@ contract PoolContract{
 		address payable winner;
 		uint idx = randomNumber % users.length;
 		winner = users[idx];
-		uint winnerPrice = (yieldedProfit - totalRaisedAmount);
+		uint winnerPrice = 1 ether;
 		winner.transfer(winnerPrice);
 		revertPoolMoney();
-		users = new address payable[](0); // reset lottery
+	}
+	
+	function resetLottery() internal {
+	    users = new address payable[](0);
+	    totalRaisedAmount = 0;
 	}
 	
 	
@@ -90,24 +82,24 @@ contract PoolContract{
 	function RenounceOwnership(address _newOwner) public onlyOwner{
 	    owner = _newOwner;
 	}       
-	
-// Rollover all tickets to next draw
-// 	function rollover() public onlyOwner isState(LotteryState.Finished) {
-// 		//rollover new lottery
-// 	}
 
 
-    // function getTimeLeft() public view returns(uint){
-    //     return (remaningTime - block.timestamp);
-    // }
+    function getTimeLeft() public view returns(uint){
+        return (remaningTime - block.timestamp);
+    }
     
-   function revertPoolMoney() internal onlyOwner{
-      for(uint i;i<users.length;i++){
-          uint x = balances[users[i]];
-          balances[users[i]] = 0;
-          users[i].transfer(x);
-      }
-  }
+
+    
+    function revertPoolMoney() internal  onlyOwner{
+        for(uint i=0;i<users.length;i++){
+                users[i].transfer(balances[users[i]]);
+                balances[users[i]] = 0;
+                emit Transaction(users[i], balances[users[i]]);
+        }
+        resetLottery();
+        
+    }
+    
 	
 	function getTokenBalance(address _userAddr) public view returns(uint){
 	    if(balances[_userAddr] == 0){
@@ -116,16 +108,8 @@ contract PoolContract{
 	    return balances[_userAddr];
 	}
 	
-	function withdraw() public {
-
-		
-	}
 	    
 }
-
-
-
-//Assume we get the interest and do other functionality
 
 
 
