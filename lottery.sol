@@ -1,38 +1,38 @@
 //SPDX-License-Identifier: GPL-3.0
- 
+
 pragma solidity ^0.8.0;
 
 
 contract PoolContract{
 	address owner;
-	
+
 	mapping(address => uint) balances;
-    
+
     address payable[] public users;
 
 	uint public noOfWinners;
-    
+
     uint public totalRaisedAmount;
-	
+
 	uint public remaningTime;
-    
-    
+
+
     event Transaction(address userAddr, uint256 amount);
-    
+
 	constructor(){
 		noOfWinners = 1;
 		owner = msg.sender;
 		remaningTime = block.timestamp + 3600;
-		
+
 	}
-    
+
     function addInitialFund() external payable onlyOwner{}
 
 
 
-	modifier onlyOwner() { 
-		require (msg.sender == owner); 
-		_; 
+	modifier onlyOwner() {
+		require (msg.sender == owner);
+		_;
 	}
 
 	function investInPool() external payable {
@@ -52,13 +52,23 @@ contract PoolContract{
 	function random() internal view returns(uint){
 		return uint(keccak256(abi.encodePacked(block.difficulty, block.timestamp, users.length))) ;
 	}
-	
+
 	function getBalance() public view returns(uint){
 	    return address(this).balance;
 	}
-	
-	
 
+
+// hey Ishaan here is writting fucntion defination for function to calculate interest for a particular account on daily basis
+// we have to inplement a schedular for it ,but was not possible so we have add the schedular on javaScript side to call this function on fixed time interval
+function interestCalculator(address _depositer,uint _rate)public  onlyOwner{
+
+}
+// if user tries to withdraw money before the pool gets matured he has to pay some panalty money
+// we charge the panalty on the amount he withdraw
+// panalty calculator implementation
+function panalty_Cal(address _depositer,uint _amount ,uint rate_panalty) public return(uint){
+  
+}
 
 
 	function pickWinner() public onlyOwner{
@@ -71,25 +81,25 @@ contract PoolContract{
 		winner.transfer(winnerPrice);
 		revertPoolMoney();
 	}
-	
+
 	function resetLottery() internal {
 	    users = new address payable[](0);
 	    totalRaisedAmount = 0;
 	}
-	
-	
-	
+
+
+
 	function RenounceOwnership(address _newOwner) public onlyOwner{
 	    owner = _newOwner;
-	}       
+	}
 
 
     function getTimeLeft() public view returns(uint){
         return (remaningTime - block.timestamp);
     }
-    
 
-    
+
+
     function revertPoolMoney() internal  onlyOwner{
         for(uint i=0;i<users.length;i++){
                 users[i].transfer(balances[users[i]]);
@@ -97,18 +107,18 @@ contract PoolContract{
                 emit Transaction(users[i], balances[users[i]]);
         }
         resetLottery();
-        
+
     }
-    
-	
+
+
 	function getTokenBalance(address _userAddr) public view returns(uint){
 	    if(balances[_userAddr] == 0){
 	        return 0;
 	    }
 	    return balances[_userAddr];
 	}
-	
-	    
+
+
 }
 
 
@@ -119,5 +129,3 @@ contract DeployLotteryContract{
 	// mapping(address => instanceof(PoolContract))
 
 }
-
-
