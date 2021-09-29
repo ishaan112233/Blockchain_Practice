@@ -7,7 +7,9 @@ contract PoolContract{
 	address owner;
 	
 	mapping(address => uint) balances;
-    
+
+    mapping (address => uint) lastLockPeriod;
+
     address payable[] public users;
 
 	uint public noOfWinners;
@@ -16,16 +18,29 @@ contract PoolContract{
 	
 	uint public remaningTime;
     
+    uint earlyExitTotalSupply;
+
+    uint public poolStart;
+    
+    uint public poolEnd;
     
     event Transaction(address userAddr, uint256 amount);
     
 	constructor(){
+		earlyExitTotalSupply = 0;
 		noOfWinners = 1;
 		owner = msg.sender;
-		remaningTime = block.timestamp + 3600;
-		
+		poolStart = block.number;
+		poolEnd = block.number + 46080;
+		coolDownPeriod= block.number + 46080; // (8 days ( Pool Period + 1 Day))
+		// Why 46080
+		// because for 8 days (Total second / time to mine new block) =>>>(60 * 60 * 24 * 7 )/15
 	}
     
+    function getCurrentBlockNumber() public view returns(uint){
+        return block.number;
+    }
+
     function addInitialFund() external payable onlyOwner{}
 
 
@@ -35,7 +50,7 @@ contract PoolContract{
 		_; 
 	}
 
-	function investInPool() external payable {
+		function investInPool() external payable {
 	    require(msg.sender != owner, "Owner can not Invest");
 	    require(msg.value > 0, "Must be greater than zero");
 	    if(balances[msg.sender] == 0){
@@ -45,6 +60,7 @@ contract PoolContract{
 	    else{
 	        balances[msg.sender]+=msg.value;
 	    }
+	    lastLockPeriod[msg.sender] = block.number + coolDownPeriod;
 	    totalRaisedAmount+=msg.value;
 	}
 
@@ -58,6 +74,32 @@ contract PoolContract{
 	}
 	
 	
+	 // need to work only after pool ends
+    // currently withdraw whole money from pool
+    function withdraw() public{
+        require(block.number >= poolEnd, "Pool has not ended, try withdrawEarly option");
+        require(balances[msg.sender] > 0,"No Balance");
+        // require(balances[msg.sender] >= _amount, "amount greater than balance");
+        uint totalBalance = balances[msg.sender];
+        balances[msg.sender] = 0;
+        payable(msg.sender).transfer(totalBalance);
+    }
+
+	function calculateEarlyExitFee() public view returns(uint){
+	   uint remaningTimeToUnlock = lastLockPeriod[msg.sender] - poolEnd;
+	   uint balance = balances[msg.sender];
+	   uint earlyFee = (balance * remaningTimeToUnlock) / 100;
+	   return earlyFee;
+	}
+
+	function withdrawEarly() public{
+	    require(block.number < poolEnd);
+	    uint exitFee = calculateEarlyExitFee();
+	    uint remaningAmount = balances[msg.sender] - exitFee;
+	    balances[msg.sender] = 0;
+	    earlyExitTotalSupply+=exitFee;
+	    payable(msg.sender).transfer(remaningAmount);
+	}
 
 
 
